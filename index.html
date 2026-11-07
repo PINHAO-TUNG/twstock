@@ -148,6 +148,29 @@ details dd{margin:2px 0 0;color:var(--muted)}
 @media (max-width:760px){.hold-form{grid-template-columns:1fr 1fr}.hold-form button{grid-column:span 2}}
 tr.lv2 td{background:var(--bull-bg)}
 #my-holding h3{margin-bottom:4px}
+.action{display:flex;align-items:center;gap:10px;margin-top:10px;padding:8px 14px;border-radius:12px;background:var(--neu-bg)}
+.action b{font-size:18px} .action.pos{background:var(--bull-bg)} .action.pos b{color:var(--up)}
+.action.neg{background:var(--bear-bg)} .action.neg b{color:var(--down)} .action.warn b{color:var(--ma1)}
+.action-why{margin:6px 0 4px;padding-left:18px;font-size:13px} .action-why li{margin:2px 0}
+.mk-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap} .mk-v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.mk-reg{margin:0 0 0 auto} .mk-tags{font-size:13px;margin:6px 0}
+.allocs{margin:10px 0} .alloc{display:grid;grid-template-columns:40px 1fr 44px;gap:8px;align-items:center;font-size:13px;margin:4px 0}
+.bar2{position:relative;height:10px;background:var(--grid);border-radius:6px;overflow:visible}
+.bar2 i{display:block;height:100%;border-radius:6px} .bar2 i.c1{background:var(--accent)} .bar2 i.c2{background:var(--ma1)} .bar2 i.c3{background:var(--muted)}
+.bar2 em{position:absolute;top:-3px;width:2px;height:16px;background:var(--fg)}
+.alloc b{text-align:right;font-variant-numeric:tabular-nums}
+.checks{list-style:none;margin:0;padding:0;font-size:13px} .checks li{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+.checks li span{flex:none;width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:11px;font-weight:700}
+.checks li.ok span{background:var(--bear-bg);color:var(--down)} .checks li.bad span{background:var(--bull-bg);color:var(--up)} .checks li.warn span{background:var(--neu-bg);color:var(--ma1)}
+.grade{padding:0 6px;border-radius:5px} .gA,.gB{color:var(--down)} .gC{color:var(--ma1)} .gD{color:var(--up)}
+.navsvg{width:100%;height:120px;display:block;margin-top:6px}
+tr.done td{color:var(--muted);text-decoration:line-through}
+h4{font-size:14px;margin:16px 0 6px}
+.pf-set input{width:130px;font:inherit;font-size:16px;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.sizer{display:grid;grid-template-columns:1fr 1fr 80px auto;gap:6px;align-items:center}
+.sizer input,#plan-start{font:inherit;font-size:16px;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0;width:100%}
+#plan-start{width:auto}
+#sizer-out{margin:6px 0}
 .empty{text-align:center;padding:40px 10px;color:var(--muted)}
 .empty b{color:var(--fg)}
 </style>
@@ -164,6 +187,11 @@ tr.lv2 td{background:var(--bull-bg)}
   <div id="watch"></div>
   <div id="progress" hidden><span></span><div class="bar"><i></i></div></div>
   <div id="error" hidden></div>
+
+  <section class="card" id="market">
+    <h3>大盤（加權指數） <button id="mk-refresh" class="mini" type="button">更新</button></h3>
+    <div class="mk-body"><p class="muted small">載入中…</p></div>
+  </section>
 
   <div id="intro" class="card empty">
     <p><b>輸入上市股票代號開始分析</b></p>
@@ -218,7 +246,14 @@ tr.lv2 td{background:var(--bull-bg)}
   </div>
 
   <section class="card" id="holdings">
-    <h3>我的持股 <span class="muted">只存在這台裝置，不會上傳</span></h3>
+    <h3>我的持股與組合儀表板 <span class="muted">只存在這台裝置，不會上傳</span></h3>
+    <div class="row-btns pf-set">
+      <label class="chk">資金池總額 <input id="pf-pool" type="number" step="any" inputmode="numeric"></label>
+      <label class="chk">現金（留空＝自動計算） <input id="pf-cash" type="number" step="any" inputmode="numeric" placeholder="自動"></label>
+      <button id="pf-deposit" type="button">記錄入金 / 提款</button>
+    </div>
+    <div id="dashboard"><p class="small muted">按「分析全部持股」產生儀表板與健康快照。</p></div>
+    <h4>持股明細</h4>
     <div id="holdings-list"></div>
     <div class="row-btns">
       <button id="hold-analyze" class="primary" type="button">分析全部持股</button>
@@ -230,11 +265,21 @@ tr.lv2 td{background:var(--bull-bg)}
     <form id="hold-form" class="hold-form" autocomplete="off">
       <input name="code" type="text" placeholder="代號" aria-label="代號" inputmode="search">
       <input name="date" type="date" aria-label="買進日">
-      <input name="cost" type="number" step="0.01" placeholder="成本價" aria-label="成本價" inputmode="decimal">
-      <input name="shares" type="number" step="0.001" placeholder="張數" aria-label="張數" inputmode="decimal">
+      <input name="cost" type="number" step="any" placeholder="成本價" aria-label="成本價" inputmode="decimal">
+      <input name="shares" type="number" step="any" placeholder="張數" aria-label="張數" inputmode="decimal">
       <select name="kind" aria-label="類型"><option value="core">長線</option><option value="swing">波段</option></select>
       <button type="submit">新增持股</button>
     </form>
+    <h4>張數計算器 <span class="muted small">依每筆可承受風險倒推</span></h4>
+    <form id="sizer" class="sizer" autocomplete="off">
+      <input name="price" type="number" step="any" placeholder="買價" inputmode="decimal" aria-label="買價">
+      <input name="stop" type="text" placeholder="停損價 或 8%" aria-label="停損">
+      <input name="risk" type="number" step="any" value="1" aria-label="風險%" inputmode="decimal">
+      <span class="small muted">% 總資產</span>
+    </form>
+    <div id="sizer-out" class="small"></div>
+    <h4>分批建倉計畫</h4>
+    <div id="plan"></div>
     <p class="small muted">同一檔分批買進可以分開新增。零股用小數張數，例如 300 股 = 0.3 張。長線看年線與可承受虧損 15%；波段看固定停損、季線與移動停利。</p>
   </section>
 
@@ -259,7 +304,7 @@ tr.lv2 td{background:var(--bull-bg)}
   <div class="foot">
     資料來源：臺灣證券交易所公開資訊，每日收盤後更新（三大法人約 15:00 後、融資融券約 21:00 後）。股價為未還原權值價格，除權息後長天期均線會略有落差。<br>
     本工具以規則式統計整理技術面與籌碼面資訊，不構成投資建議，請自行判斷並承擔風險。<br>
-    <button id="clear-cache" type="button">清除快取資料</button> <span>版本 2026.11.07-2344</span>
+    <button id="clear-cache" type="button">清除快取資料</button> <span>版本 2026.11.08-0025</span>
   </div>
 </div>
 <script>/* ============================================================
@@ -1066,7 +1111,17 @@ tr.lv2 td{background:var(--bull-bg)}
     coreRisk: 15,      // 長線可承受最大虧損 %
     trailTrigger: 15,  // 獲利超過此 % 才啟動移動停利
     trailDD: 10,       // 從最高收盤回落此 % 出場
+    feeRate: 0.1425,   // 手續費 %（單邊）
+    feeDiscount: 0.6,  // 券商折扣（6 折）
+    riskPerTrade: 1,   // 每筆波段最多虧損總資產 %
+    coreTarget: 70,    // 核心目標比例 %
+    inflation: 2,      // 通膨假設 %
+    alphaTarget: 3,    // 目標每年贏大盤 %
   };
+  const isETF = (code) => /^00/.test(code);
+  const isInverseOrLev = (code) => /^00\d{3}[RL]$/.test(code);
+  // 來回交易成本 %（手續費雙邊 + 證交稅）
+  const roundTripCost = (code, p) => 2 * p.feeRate * p.feeDiscount + (isETF(code || '') ? 0.1 : 0.3);
 
   const STRATS = {
     B1: { name: '拉回買點', kind: 'swing', desc: '上升趨勢中（季線上揚、月線在季線上），股價拉回月線附近後收紅 K 站穩' },
@@ -1147,17 +1202,27 @@ tr.lv2 td{background:var(--bull-bg)}
     for (const code of Object.keys(STRATS)) {
       const kind = STRATS[code].kind;
       const trades = [];
-      let busyUntil = -1;
+      let busyUntil = -1, lockUntilReclaim = -1;
+      const cost = roundTripCost(p.symbol, p);
       for (const s of sigs.filter((x) => x.code === code)) {
         if (s.i <= busyUntil || s.i + 1 >= rows.length) continue;
+        // 再進場規則：停損出場後，至少 5 個交易日，且需先有一天收盤站回月線
+        if (lockUntilReclaim >= 0) {
+          if (s.i < lockUntilReclaim + 5) continue;
+          let reclaimed = false;
+          for (let k = lockUntilReclaim + 1; k <= s.i; k++) if (rows[k].close > ind.ma[20][k]) { reclaimed = true; break; }
+          if (!reclaimed) continue;
+          lockUntilReclaim = -1;
+        }
         const ei = s.i + 1;
         const entry = rows[ei].open;
         const ex = findExit(rows, ind, ei, entry, kind, p);
         if (ex && ex.executed) {
           const exitP = rows[ex.exitIdx].open;
           trades.push({ sig: s, entryDate: rows[ei].date, entry, exitDate: rows[ex.exitIdx].date, exit: exitP,
-            ret: (exitP - entry) / entry * 100, days: ex.exitIdx - ei, reason: ex.reason, open: false });
+            ret: (exitP - entry) / entry * 100 - cost, days: ex.exitIdx - ei, reason: ex.reason, open: false });
           busyUntil = ex.exitIdx;
+          if (!/停利/.test(ex.reason)) lockUntilReclaim = ex.exitIdx;
         } else {
           const last = rows[rows.length - 1];
           trades.push({ sig: s, entryDate: rows[ei].date, entry, exitDate: null, exit: last.close,
@@ -1182,7 +1247,7 @@ tr.lv2 td{background:var(--bull-bg)}
     // 同期間買進持有（從年線可計算的第一天起，或從第 60 天起）
     const start = Math.max(60, ind.ma[60].findIndex((v) => isFinite(v)));
     const bh = rows.length > start ? (rows[rows.length - 1].close - rows[start].open) / rows[start].open * 100 : NaN;
-    return { strategies: res, signals: sigs, buyHold: bh, from: rows[start] ? rows[start].date : null, to: rows[rows.length - 1].date };
+    return { strategies: res, signals: sigs, buyHold: bh, cost: roundTripCost(p.symbol, p), from: rows[start] ? rows[start].date : null, to: rows[rows.length - 1].date };
   }
 
   // 持股判斷：h = {code, date, cost, shares, kind}
@@ -1191,11 +1256,12 @@ tr.lv2 td{background:var(--bull-bg)}
     const n = rows.length, i = n - 1, r = rows[i], c = r.close;
     const ma20 = ind.ma[20][i], ma60 = ind.ma[60][i], ma240 = ind.ma[240][i];
     const ret = (c - h.cost) / h.cost * 100;
-    const since = rows.filter((x) => x.date >= h.date);
+    const hasDate = !!h.date;
+    const since = hasDate ? rows.filter((x) => x.date >= h.date) : rows.slice(-1);
     const maxClose = Math.max(h.cost, ...since.map((x) => x.close));
     const maxRet = (maxClose - h.cost) / h.cost * 100;
     const dd = (c - maxClose) / maxClose * 100;
-    const days = Math.round((Date.parse(r.date) - Date.parse(h.date)) / 86400000);
+    const days = hasDate ? Math.round((Date.parse(r.date) - Date.parse(h.date)) / 86400000) : NaN;
     const notes = [];
     const lines = []; // {name, price, hit}
     let status = '續抱', level = 0; // 0 續抱 1 警戒 2 觸發
@@ -1235,11 +1301,156 @@ tr.lv2 td{background:var(--bull-bg)}
         notes.push('股價在上揚年線附近，屬長線分批布局區');
       }
     }
+    if (!hasDate) notes.push('未填買進日：持有期間最高價、移動停利無法計算');
+    if (isInverseOrLev(h.code)) notes.push('反向 / 槓桿 ETF 每日重新平衡，長期持有會有耗損，適合短期避險，不適合長抱');
     // 趨勢小結
     const trend = c > ma20 && ma20 > ma60 ? '多頭' : c < ma20 && ma20 < ma60 ? '空頭' : '盤整';
     return { code: h.code, close: c, date: r.date, ret, maxRet, dd, days, status, level, lines, notes, trend,
       value: c * h.shares * 1000, costValue: h.cost * h.shares * 1000, pnl: (c - h.cost) * h.shares * 1000,
-      beforeData: h.date < rows[0].date };
+      beforeData: hasDate && h.date < rows[0].date };
+  }
+
+
+  // ---------- 大盤 ----------
+  // MI_5MINS_HIST -> [{date, open, high, low, close}]
+  function parseIndex(json) {
+    if (!json || json.stat !== 'OK' || !Array.isArray(json.data)) return [];
+    const n = (v) => Number(String(v).replace(/,/g, ''));
+    return json.data.map((r) => {
+      const m = String(r[0]).trim().match(/^(\d{2,3})\/(\d{1,2})\/(\d{1,2})$/);
+      if (!m) return null;
+      const date = (Number(m[1]) + 1911) + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+      return r.length >= 5 ? { date, open: n(r[1]), high: n(r[2]), low: n(r[3]), close: n(r[4]), volume: 0 } : { date, close: n(r[1]) };
+    }).filter((x) => x && isFinite(x.close));
+  }
+
+  // 大盤狀態：濾網、趨勢、熊市警示
+  function marketState(rows, ind, params) {
+    const p = Object.assign({}, DEFAULTS, params || {});
+    const n = rows.length, i = n - 1, c = rows[i].close;
+    const ma = (k) => ind.ma[k] ? ind.ma[k][i] : NaN;
+    const m20 = ma(20), m60 = ma(60), m240 = ma(240);
+    const i6 = rows.findIndex((r) => r.date >= shiftMonths(rows[i].date, -6));
+    const ret6m = i6 >= 0 && i6 < i ? (c - rows[i6].close) / rows[i6].close * 100 : NaN;
+    const threshold = (p.inflation + 5) / 2; // 半年門檻
+    const below240 = isFinite(m240) && c < m240;
+    const m240down = isFinite(ind.ma[240][i - 20]) && m240 < ind.ma[240][i - 20];
+    let regime = '盤整';
+    if (c > m60 && m20 > m60) regime = '多頭';
+    else if (c < m60 && m20 < m60) regime = '空頭';
+    if (below240 && m240down) regime = '長空';
+    return {
+      date: rows[i].date, close: c, chg: n > 1 ? c - rows[i - 1].close : 0, chgPct: n > 1 ? (c - rows[i - 1].close) / rows[i - 1].close * 100 : 0,
+      m20, m60, m240, ret6m, threshold, regime,
+      filterPass: c > m60,                       // 大盤濾網：收盤在季線之上才做多波段
+      weak6m: isFinite(ret6m) && ret6m < threshold,
+      bearWarn: isFinite(ret6m) && ret6m < threshold && below240, // 熊市警示：半年報酬低於門檻 且 跌破年線
+      below240, m240down,
+    };
+  }
+  function shiftMonths(iso, k) {
+    const d = new Date(iso + 'T00:00:00Z');
+    d.setUTCMonth(d.getUTCMonth() + k);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // 今日動作：結合訊號、持股狀態、大盤濾網
+  // ev = evaluateHolding 結果或 null；recentSig = 近 3 日訊號陣列；mkt = marketState 或 null
+  function todayAction(rows, ind, ev, recentSig, mkt) {
+    const i = rows.length - 1, c = rows[i].close;
+    const m20 = ind.ma[20][i], m60 = ind.ma[60][i];
+    const reasons = [];
+    if (ev) {
+      if (ev.level === 2) return { action: ev.status.includes('停利') ? '停利出場' : ev.status === '長線轉弱' ? '減碼' : '停損出場', tone: 'neg', reasons: [ev.notes[0]] };
+      if (ev.level === 1) return { action: '警戒續抱', tone: 'warn', reasons: [ev.notes[0]] };
+      reasons.push('持股未觸發任何出場線');
+      if (recentSig.some((s) => s.code === 'B3')) reasons.push('年線附近出現布局訊號，長線部位可依計畫分批加碼');
+      return { action: '續抱', tone: 'pos', reasons };
+    }
+    if (recentSig.length) {
+      const swing = recentSig.filter((s) => s.code !== 'B3');
+      const core = recentSig.filter((s) => s.code === 'B3');
+      if (!swing.length) return { action: '長線可分批', tone: 'warn', reasons: core.map((s) => `${STRATS[s.code].name}：${s.text}`).concat(['屬長線分批布局訊號，依建倉計畫分批，不一次買足']) };
+      if (swing.length && mkt && !mkt.filterPass) {
+        reasons.push(`${STRATS[swing[0].code].name}出現，但大盤在季線之下，波段先不進場`);
+        if (core.length) { reasons.push('年線布局訊號可作為長線分批的參考'); return { action: '長線可分批', tone: 'warn', reasons }; }
+        return { action: '觀察', tone: 'warn', reasons };
+      }
+      return { action: '買進候選', tone: 'pos', reasons: recentSig.map((s) => `${STRATS[s.code].name}：${s.text}`).concat(mkt ? [mkt.filterPass ? '大盤濾網通過' : '大盤在季線之下（僅長線訊號）'] : ['大盤資料尚未載入']) };
+    }
+    if (c > m20 && m20 > m60) return { action: '觀察', tone: 'neutral', reasons: ['趨勢偏多，等待拉回或突破訊號'] };
+    if (c < m60) return { action: '不宜進場', tone: 'neg', reasons: ['股價在季線之下，趨勢未轉強'] };
+    return { action: '觀察', tone: 'neutral', reasons: ['盤整中，沒有明確訊號'] };
+  }
+
+  // ---------- 部位與組合 ----------
+  // 依風險計算可買數量（股）
+  function positionSize(totalAssets, riskPct, price, stopPrice) {
+    const risk = totalAssets * riskPct / 100;
+    const per = price - stopPrice;
+    if (!(per > 0) || !(price > 0)) return null;
+    const shares = Math.floor(risk / per);
+    return { risk, shares, lots: shares / 1000, amount: shares * price, pctOfAssets: shares * price / totalAssets * 100 };
+  }
+
+  // 組合摘要與健康檢查
+  // holdings: [{code,kind,shares(張),cost}], evals: evaluateHolding 結果, cash: 現金, peak: 歷史最高總資產, mkt
+  function portfolioHealth(holdings, evals, cash, peak, mkt, params) {
+    const p = Object.assign({}, DEFAULTS, params || {});
+    let mv = 0, core = 0, sat = 0, riskSum = 0;
+    const items = holdings.map((h, k) => {
+      const e = evals[k];
+      const value = e ? e.value : h.cost * h.shares * 1000;
+      mv += value;
+      if (h.kind === 'core') core += value; else sat += value;
+      const stops = e ? e.lines.map((l) => l.price).filter((v) => isFinite(v) && v < e.close) : [];
+      const stop = stops.length ? Math.max(...stops) : NaN;
+      const lossToStop = e && isFinite(stop) ? (e.close - stop) * h.shares * 1000 : NaN;
+      if (isFinite(lossToStop)) riskSum += lossToStop;
+      return { h, e, value, stop, lossToStop };
+    });
+    const total = mv + cash;
+    const dd = peak > 0 ? (total - peak) / peak * 100 : 0;
+    const ddLevel = dd <= -20 ? 3 : dd <= -15 ? 2 : dd <= -10 ? 1 : 0;
+    const checks = []; // {ok:boolean|null, text}
+    const add = (ok, text) => checks.push({ ok, text });
+    const corePct = total ? core / total * 100 : 0, satPct = total ? sat / total * 100 : 0, cashPct = total ? cash / total * 100 : 0;
+    const satTarget = 100 - p.coreTarget;
+    add(Math.abs(corePct - p.coreTarget) <= 10 || cashPct > 50 ? (cashPct > 50 ? null : true) : false,
+      `配置：核心 ${corePct.toFixed(0)}% / 衛星 ${satPct.toFixed(0)}% / 現金 ${cashPct.toFixed(0)}%（目標 ${p.coreTarget}/${satTarget}）${cashPct > 50 ? '，目前以現金為主，可依建倉計畫分批進場' : ''}`);
+    const heavy = items.filter((x) => total && x.value / total * 100 > 10);
+    add(!heavy.length, heavy.length ? `單一持股超過總資產 10%：${heavy.map((x) => x.h.code + ' ' + (x.value / total * 100).toFixed(0) + '%').join('、')}` : '沒有單一持股超過總資產 10%');
+    const riskyOne = items.filter((x) => x.h.kind === 'swing' && total && x.lossToStop / total * 100 > p.riskPerTrade * 1.5);
+    add(!riskyOne.length, riskyOne.length ? `波段單打到停損會虧超過總資產 ${p.riskPerTrade * 1.5}%：${riskyOne.map((x) => x.h.code).join('、')}` : `每筆波段單的停損風險都在總資產 ${p.riskPerTrade * 1.5}% 以內`);
+    const breached = items.filter((x) => x.e && x.e.level === 2);
+    add(!breached.length, breached.length ? `已觸發出場線：${breached.map((x) => x.h.code + '（' + x.e.status + '）').join('、')}` : '沒有持股觸發出場線');
+    const deep = items.filter((x) => x.e && x.e.ret <= -p.coreRisk);
+    if (deep.length) add(false, `虧損超過可承受的 ${p.coreRisk}%：${deep.map((x) => x.h.code + ' ' + x.e.ret.toFixed(1) + '%').join('、')}，建議重新檢視持有理由`);
+    const inv = items.filter((x) => isInverseOrLev(x.h.code));
+    if (inv.length) add(null, `持有反向 / 槓桿 ETF：${inv.map((x) => x.h.code).join('、')}。屬短期避險工具，建議設定明確出場條件`);
+    add(ddLevel === 0, ddLevel === 0 ? `組合自高點回檔 ${dd.toFixed(1)}%，未達風控門檻` : `組合自高點回檔 ${dd.toFixed(1)}%，風控第 ${ddLevel} 級：${['', '衛星停止開新倉', '衛星減半', '衛星全出、核心逐檔檢討'][ddLevel]}`);
+    if (mkt) {
+      add(mkt.filterPass ? true : null, mkt.filterPass ? '大盤在季線之上，波段濾網通過' : '大盤在季線之下，波段暫停開新倉');
+      if (mkt.bearWarn) add(false, `熊市警示：大盤半年報酬 ${mkt.ret6m.toFixed(1)}% 低於門檻 ${mkt.threshold.toFixed(1)}%，且跌破年線。可考慮提高債券 / 現金比重`);
+      else if (mkt.weak6m) add(null, `大盤半年報酬 ${mkt.ret6m.toFixed(1)}% 低於門檻 ${mkt.threshold.toFixed(1)}%，但仍在年線之上，先觀察`);
+    }
+    const bad = checks.filter((c) => c.ok === false).length, warn = checks.filter((c) => c.ok === null).length;
+    const grade = bad === 0 ? (warn === 0 ? 'A' : 'B') : bad === 1 ? 'C' : 'D';
+    return { total, mv, cash, core, sat, corePct, satPct, cashPct, dd, ddLevel, riskSum, riskPct: total ? riskSum / total * 100 : 0, items, checks, grade };
+  }
+
+  // 淨值（單位法）：snapshots [{date,total,flow}] -> 加上 nav
+  function navSeries(snaps) {
+    let units = 0, nav = 100;
+    return snaps.map((s, k) => {
+      if (k === 0) { units = s.total / 100; nav = 100; }
+      else {
+        const before = s.total - (s.flow || 0);
+        nav = units > 0 ? before / units : nav;
+        if (s.flow) units += s.flow / nav;
+      }
+      return { date: s.date, total: s.total, nav };
+    });
   }
 
   function fmt(x) {
@@ -1260,7 +1471,7 @@ tr.lv2 td{background:var(--bull-bg)}
       const cost = Number(String(cols[2]).replace(/,/g, ''));
       const shares = Number(String(cols[3]).replace(/,/g, ''));
       const kind = /波段|swing|短/.test(cols[4] || '') ? 'swing' : 'core';
-      if (date && cost > 0 && shares > 0) out.push({ code, date, cost, shares, kind });
+      if (cost > 0 && shares > 0) out.push({ code, date: date || '', cost, shares, kind });
     }
     return out;
   }
@@ -1284,7 +1495,8 @@ tr.lv2 td{background:var(--bull-bg)}
     return y + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
   }
 
-  const API = { DEFAULTS, STRATS, findSignals, findExit, backtest, evaluateHolding, parseHoldingsCSV, normDate };
+  const API = { DEFAULTS, STRATS, findSignals, findExit, backtest, evaluateHolding, parseHoldingsCSV, normDate,
+    parseIndex, marketState, todayAction, positionSize, portfolioHealth, navSeries, roundTripCost, isETF, isInverseOrLev, shiftMonths };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   else root.TWStrategy = API;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -1337,7 +1549,13 @@ tr.lv2 td{background:var(--bull-bg)}
   // ---------- TWSE 請求排隊 ----------
   let lastReq = 0;
   let reqCount = 0;
-  async function twse(path) {
+  let reqChain = Promise.resolve();
+  function twse(path) {
+    const job = reqChain.then(() => twseNow(path));
+    reqChain = job.catch(() => {});
+    return job;
+  }
+  async function twseNow(path) {
     const wait = lastReq + GAP_MS - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     lastReq = Date.now();
@@ -1526,6 +1744,7 @@ tr.lv2 td{background:var(--bull-bg)}
     renderSummary(daily, an);
     renderStrategy(daily, indD);
     renderMyHolding(daily, indD);
+    renderAction(daily, indD);
     renderChart();
     renderMA(daily, indD);
     renderSignals(an);
@@ -1549,7 +1768,8 @@ tr.lv2 td{background:var(--bull-bg)}
       </div>
       <div class="s-price ${cls}">${C.fmt(r.close)} <small>${chg >= 0 ? '+' : ''}${C.fmt(chg)} (${chg >= 0 ? '+' : ''}${pct.toFixed(2)}%)</small></div>
       <div class="s-meta muted">開 ${C.fmt(r.open)}　高 ${C.fmt(r.high)}　低 ${C.fmt(r.low)}　量 ${C.fmtInt(r.volume)} 張</div>
-      <div class="verdict ${vcls}"><span>綜合判讀</span><b>${an.verdict}</b><span class="score">分數 ${an.score > 0 ? '+' : ''}${an.score.toFixed(1)}</span></div>`;
+      <div class="verdict ${vcls}"><span>綜合判讀</span><b>${an.verdict}</b><span class="score">分數 ${an.score > 0 ? '+' : ''}${an.score.toFixed(1)}</span></div>
+      <div id="today-action"></div>`;
     $('#star').onclick = () => { toggleWatch(state.code, state.name); renderSummary(rows, an); };
   }
 
@@ -1644,7 +1864,8 @@ tr.lv2 td{background:var(--bull-bg)}
   // ---------- 買賣點 / 回測 ----------
   function renderStrategy(rows, ind) {
     const S = TWStrategy;
-    const bt = S.backtest(rows, ind, state.params);
+    const bt = S.backtest(rows, ind, Object.assign({ symbol: state.code }, state.params));
+    state.recentSig = bt.signals.filter((x) => x.i >= rows.length - 3);
     const n = rows.length;
     // 圖上標記（只標回測交易）
     const idx = {}; rows.forEach((r, i) => (idx[r.date] = i));
@@ -1680,7 +1901,7 @@ tr.lv2 td{background:var(--bull-bg)}
       <div class="tbl-wrap"><table class="tbl">
         <thead><tr><th>策略</th><th class="num">交易次數</th><th class="num">勝率</th><th class="num">平均報酬</th><th class="num">最大單筆虧損</th><th class="num">累積報酬</th><th class="num">平均持有</th></tr></thead>
         <tbody>${rowsHtml}</tbody></table></div>
-      <p class="small muted">回測區間 ${bt.from || '—'} ～ ${bt.to}（約 ${years.toFixed(1)} 年），同期買進持有 ${pct(bt.buyHold)}。訊號以收盤判斷、隔日開盤成交，未計手續費與交易稅（來回約 0.6%）。
+      <p class="small muted">回測區間 ${bt.from || '—'} ～ ${bt.to}（約 ${years.toFixed(1)} 年），同期買進持有 ${pct(bt.buyHold)}。訊號以收盤判斷、隔日開盤成交，每筆已扣除來回成本約 ${bt.cost.toFixed(2)}%（手續費 ${state.params.feeDiscount * 10} 折＋證交稅）。停損出場後需等 5 個交易日且站回月線才再進場。
       ${state.months < 37 ? '<br>資料只有約 1 年，樣本太少、年線策略也還算不出來，建議延伸到 3 年再看結果。' : ''}</p>
       <div class="row-btns">${state.months < 37 ? '<button id="bt-extend" type="button">延伸到 3 年資料回測（首次約 1 分鐘）</button>' : ''}</div>
       ${trades.length ? `<details><summary>逐筆交易明細（${trades.length} 筆，圖上 ▲ 買進 ▼ 賣出）</summary><div class="tbl-wrap"><table class="tbl"><thead><tr><th>策略</th><th>買進日</th><th class="num">買價</th><th>賣出日</th><th class="num">賣價</th><th class="num">報酬</th><th>出場原因</th></tr></thead><tbody>${tradeHtml}</tbody></table></div></details>` : ''}
@@ -1702,16 +1923,18 @@ tr.lv2 td{background:var(--bull-bg)}
     const mine = getHoldings().filter((h) => h.code === state.code);
     state.costLines = mine.map((h) => ({ price: h.cost, label: '成本 ' + C.fmt(h.cost) }));
     const box = $('#my-holding');
-    if (!mine.length) { box.hidden = true; return; }
+    if (!mine.length) { box.hidden = true; state.myEval = null; return; }
     box.hidden = false;
-    box.innerHTML = '<h3>我的持股判斷</h3>' + mine.map((h) => holdingCard(h, TWStrategy.evaluateHolding(h, rows, ind, state.params))).join('');
+    const evs = mine.map((h) => TWStrategy.evaluateHolding(h, rows, ind, state.params));
+    state.myEval = evs[0];
+    box.innerHTML = '<h3>我的持股判斷</h3>' + mine.map((h, k) => holdingCard(h, evs[k])).join('');
   }
 
   function holdingCard(h, e) {
     const cls = e.level === 2 ? 'lv2' : e.level === 1 ? 'lv1' : 'lv0';
     return `<div class="hold ${cls}">
       <div class="hold-head"><b>${esc(h.name || '')} ${esc(h.code)}</b><span class="pill2">${kindName(h.kind)}</span><span class="status">${e.status}</span></div>
-      <div class="hold-meta">買進 ${h.date}（${e.days} 天）成本 ${C.fmt(h.cost)} × ${h.shares} 張 → 現價 ${C.fmt(e.close)}，
+      <div class="hold-meta">買進 ${h.date ? h.date + '（' + e.days + ' 天）' : '日期未填'}成本 ${C.fmt(h.cost)} × ${h.shares} 張 → 現價 ${C.fmt(e.close)}，
         <span class="${e.ret >= 0 ? 'up' : 'down'}">${e.ret >= 0 ? '+' : ''}${e.ret.toFixed(1)}%（${e.pnl >= 0 ? '+' : ''}${C.fmtInt(e.pnl)} 元）</span>，持有期最高 ${e.maxRet >= 0 ? '+' : ''}${e.maxRet.toFixed(1)}%</div>
       <ul class="hold-lines">${e.lines.map((l) => `<li class="${l.hit ? 'hit' : ''}"><span>${esc(l.name)}</span><b>${C.fmt(l.price)}</b><small>${isFinite(l.price) ? ((l.price - e.close) / e.close * 100).toFixed(1) + '%' : ''}</small></li>`).join('')}</ul>
       ${e.notes.length ? `<ul class="hold-notes">${e.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
@@ -1727,7 +1950,7 @@ tr.lv2 td{background:var(--bull-bg)}
     const tr = hs.map((h, k) => {
       const e = evals && evals[k];
       if (e) { totCost += e.costValue; totVal += e.value; }
-      return `<tr class="${e ? 'lv' + e.level : ''}"><td><a href="#" data-code="${esc(h.code)}" class="goto">${esc(h.name || '')} ${esc(h.code)}</a></td><td>${kindName(h.kind)}</td><td>${h.date}</td>
+      return `<tr class="${e ? 'lv' + e.level : ''}"><td><a href="#" data-code="${esc(h.code)}" class="goto">${esc(h.name || '')} ${esc(h.code)}</a></td><td>${kindName(h.kind)}</td><td>${h.date || '<span class="muted">未填</span>'}</td>
         <td class="num">${C.fmt(h.cost)}</td><td class="num">${h.shares}</td>
         <td class="num">${e ? C.fmt(e.close) : '—'}</td>
         <td class="num">${e ? `<span class="${e.ret >= 0 ? 'up' : 'down'}">${e.ret >= 0 ? '+' : ''}${e.ret.toFixed(1)}%</span>` : '—'}</td>
@@ -1742,7 +1965,7 @@ tr.lv2 td{background:var(--bull-bg)}
     box.querySelectorAll('.del').forEach((b) => (b.onclick = () => {
       const h = getHoldings(); const x = h[Number(b.dataset.k)];
       if (!confirm(`刪除 ${x.code} ${x.date} 這筆持股？`)) return;
-      h.splice(Number(b.dataset.k), 1); setHoldings(h); renderHoldingsTable(); if (state.rows.length) renderAll();
+      h.splice(Number(b.dataset.k), 1); setHoldings(h); state.lastEvals = null; renderHoldingsTable(); if (state.rows.length) renderAll();
     }));
     box.querySelectorAll('.goto').forEach((a) => (a.onclick = (ev) => { ev.preventDefault(); $('#intro').hidden = true; $('#code').value = a.dataset.code; query(a.dataset.code); window.scrollTo(0, 0); }));
   }
@@ -1767,7 +1990,9 @@ tr.lv2 td{background:var(--bull-bg)}
         evals[k] = TWStrategy.evaluateHolding(h, d.rows, d.ind, state.params);
       }
       setHoldings(hs);
+      state.lastEvals = evals;
       renderHoldingsTable(evals);
+      renderDashboard(evals);
       $('#holdings-cards').innerHTML = hs.map((h, k) => holdingCard(h, evals[k])).join('');
     } catch (e) { showError(e.message || String(e)); }
     finally { progress('', 1); state.busy = false; $('#hold-analyze').disabled = false; }
@@ -1775,12 +2000,12 @@ tr.lv2 td{background:var(--bull-bg)}
 
   function initHoldings() {
     const f = $('#hold-form');
-    f.querySelector('[name=date]').value = tpeNow().iso;
+    
     f.onsubmit = (ev) => {
       ev.preventDefault();
       const code = resolveCode(f.code.value);
       const cost = Number(f.cost.value), shares = Number(f.shares.value);
-      if (!code || !(cost > 0) || !(shares > 0) || !f.date.value) { showError('持股資料不完整：請填代號、買進日、成本與張數'); return; }
+      if (!code || !(cost > 0) || !(shares > 0)) { showError('持股資料不完整：請填代號、成本與張數（買進日可留空）'); return; }
       const names = store.get('tw:names') || {};
       const h = getHoldings();
       h.push({ code, name: names[code] || '', date: f.date.value, cost, shares, kind: f.kind.value });
@@ -1810,6 +2035,219 @@ tr.lv2 td{background:var(--bull-bg)}
       if (state.rows.length) renderAll();
     };
     renderHoldingsTable();
+  }
+
+  // ---------- 今日動作 ----------
+  function renderAction(rows, ind) {
+    const S = TWStrategy;
+    const mkt = state.market ? state.market.st : null;
+    const a = S.todayAction(rows, ind, state.myEval || null, state.recentSig || [], mkt);
+    const c = rows[rows.length - 1].close;
+    const stop = c * (1 - state.params.swingStop / 100);
+    const assets = currentAssets();
+    const size = S.positionSize(assets, state.params.riskPerTrade, c, stop);
+    const sizeTxt = a.action === '買進候選' && size
+      ? `<div class="small">部位建議：總資產 ${C.fmtInt(assets)}、每筆風險 ${state.params.riskPerTrade}%、停損 -${state.params.swingStop}%（${C.fmt(stop)}）→ 最多 <b>${C.fmtInt(size.shares)} 股（${size.lots.toFixed(2)} 張）</b>，約 ${C.fmtInt(size.amount)} 元${size.pctOfAssets > 10 ? `，但已超過總資產 10%，建議上限 ${C.fmtInt(Math.floor(assets * 0.1 / c))} 股` : ''}</div>` : '';
+    $('#today-action').innerHTML = `<div class="action ${a.tone}"><span>今日動作</span><b>${a.action}</b></div>
+      <ul class="action-why">${a.reasons.filter(Boolean).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>${sizeTxt}
+      <p class="small muted">規則式提示，依收盤資料判斷，不構成投資建議。</p>`;
+  }
+
+  // ---------- 大盤 ----------
+  async function loadMonthly(prefix, pathFn, parser, nMonths, onProgress, label) {
+    const now = tpeNow();
+    let y = now.y, m = now.m;
+    const all = [];
+    for (let i = 0; i < nMonths; i++) {
+      const key = prefix + ym(y, m);
+      const cached = store.get(key);
+      const fresh = cached && (monthEndPassed(y, m, cached.ts) || Date.now() - cached.ts < 15 * 60 * 1000);
+      let rows;
+      if (fresh) rows = cached.rows;
+      else {
+        onProgress && onProgress(`下載 ${y}/${m} ${label}…`);
+        const j = await twse(pathFn(ym(y, m) + '01'));
+        rows = parser(j);
+        if (j.stat === 'OK') store.set(key, { ts: Date.now(), rows });
+      }
+      all.push(...rows);
+      m--; if (m === 0) { m = 12; y--; }
+    }
+    return sortRows(all);
+  }
+
+  async function loadMarket(force) {
+    const box = $('#market');
+    try {
+      if (force) store.keys('tw:ix:').concat(store.keys('tw:tri:')).filter((k) => k.endsWith(ym(tpeNow().y, tpeNow().m))).forEach(store.del);
+      const prog = (msg) => { box.querySelector('.mk-body').innerHTML = `<p class="muted small">${esc(msg)}（第一次約 40 秒）</p>`; };
+      const rows = await loadMonthly('tw:ix:', (d) => `/TAIEX/MI_5MINS_HIST?date=${d}&response=json`, TWStrategy.parseIndex, 13, prog, '加權指數');
+      const tri = await loadMonthly('tw:tri:', (d) => `/TAIEX/MFI94U?date=${d}&response=json`, TWStrategy.parseIndex, 7, prog, '報酬指數');
+      const ind = C.computeIndicators(rows, 'D');
+      state.market = { rows, ind, tri, st: TWStrategy.marketState(rows, ind, state.params) };
+      renderMarket();
+      if (state.rows.length) renderAll();
+      if (state.lastEvals) renderDashboard(state.lastEvals);
+    } catch (e) {
+      box.querySelector('.mk-body').innerHTML = `<p class="small" style="color:var(--up)">${esc(e.message || String(e))}</p>`;
+    }
+  }
+
+  function renderMarket() {
+    const m = state.market.st;
+    const cls = m.chg >= 0 ? 'up' : 'down';
+    const tone = m.regime === '多頭' ? 'bull' : m.regime === '盤整' ? 'neutral' : 'bear';
+    const pos = (v, name) => `<span class="${m.close >= v ? 'up' : 'down'}">${m.close >= v ? '站上' : '跌破'}${name} ${C.fmt(v, 0)}</span>`;
+    $('#market .mk-body').innerHTML = `
+      <div class="mk-row"><div><div class="mk-v ${cls}">${C.fmt(m.close, 2)}</div>
+        <div class="small ${cls}">${m.chg >= 0 ? '+' : ''}${C.fmt(m.chg, 2)}（${m.chgPct >= 0 ? '+' : ''}${m.chgPct.toFixed(2)}%）　${m.date}</div></div>
+        <div class="verdict ${tone} mk-reg"><span>大盤</span><b>${m.regime}</b></div></div>
+      <div class="mk-tags">${pos(m.m20, '月線')} · ${pos(m.m60, '季線')} · ${pos(m.m240, '年線')}</div>
+      <ul class="action-why">
+        <li>${m.filterPass ? '✓ 波段濾網通過：大盤在季線之上，可依訊號開新倉' : '✕ 波段濾網未通過：大盤在季線之下，波段暫停開新倉'}</li>
+        <li>半年報酬 ${isFinite(m.ret6m) ? (m.ret6m >= 0 ? '+' : '') + m.ret6m.toFixed(1) + '%' : '—'}（門檻 (通膨 ${state.params.inflation}% + 5%) ÷ 2 = ${m.threshold.toFixed(1)}%）
+          ${m.bearWarn ? '<b style="color:var(--up)">→ 熊市警示：且跌破年線，可考慮提高債券 / 現金比重</b>' : m.weak6m ? '→ 低於門檻，但仍在年線之上，先觀察' : '→ 高於門檻'}</li>
+      </ul>`;
+  }
+
+  // ---------- 組合儀表板 ----------
+  const getPf = () => Object.assign({ pool: 2000000, cash: null, flows: [], planStart: null, planDone: [] }, store.get('tw:pf') || {});
+  const setPf = (v) => store.set('tw:pf', v);
+  function currentAssets() {
+    const pf = getPf();
+    const hs = getHoldings();
+    const cost = hs.reduce((a, h) => a + h.cost * h.shares * 1000, 0);
+    const cash = pf.cash !== null && pf.cash !== '' && isFinite(Number(pf.cash)) ? Number(pf.cash) : pf.pool - cost;
+    const mv = state.lastEvals ? state.lastEvals.reduce((a, e) => a + (e ? e.value : 0), 0) : cost;
+    return Math.max(1, cash + mv);
+  }
+  function currentCash() {
+    const pf = getPf();
+    if (pf.cash !== null && pf.cash !== '' && isFinite(Number(pf.cash))) return Number(pf.cash);
+    return pf.pool - getHoldings().reduce((a, h) => a + h.cost * h.shares * 1000, 0);
+  }
+
+  function renderDashboard(evals) {
+    const S = TWStrategy, pf = getPf(), hs = getHoldings();
+    const cash = currentCash();
+    const snaps = store.get('tw:snaps') || [];
+    const peak = Math.max(pf.pool, ...snaps.map((x) => x.total));
+    const mkt = state.market ? state.market.st : null;
+    const ph = S.portfolioHealth(hs, evals, cash, peak, mkt, state.params);
+    // 快照：每個資料日一筆
+    const date = mkt ? mkt.date : tpeNow().iso;
+    const pendingFlow = (pf.flows || []).filter((f) => !f.snapped).reduce((a, f) => a + f.amount, 0);
+    const lastSnap = snaps[snaps.length - 1];
+    if (!lastSnap || lastSnap.date !== date) snaps.push({ date, total: ph.total, flow: pendingFlow });
+    else { lastSnap.total = ph.total; lastSnap.flow = (lastSnap.flow || 0) + pendingFlow; }
+    if (pendingFlow) { pf.flows.forEach((f) => (f.snapped = true)); setPf(pf); }
+    store.set('tw:snaps', snaps.slice(-800));
+    const nav = S.navSeries(snaps);
+    // 與報酬指數比較
+    let perf = '<p class="small muted">每天按一次「分析全部持股」會記錄一筆淨值，累積幾天後就能和大盤（含息報酬指數）比較。</p>';
+    if (nav.length >= 2 && state.market && state.market.tri.length) {
+      const tri = state.market.tri;
+      const t0 = tri.find((x) => x.date >= nav[0].date) || tri[0], t1 = tri[tri.length - 1];
+      const pr = nav[nav.length - 1].nav / nav[0].nav * 100 - 100, br = t1.close / t0.close * 100 - 100;
+      const days = (Date.parse(nav[nav.length - 1].date) - Date.parse(nav[0].date)) / 86400000;
+      const need = state.params.alphaTarget * days / 365;
+      perf = `<p class="small">自 ${nav[0].date} 起：組合 <b class="${pr >= 0 ? 'up' : 'down'}">${pr >= 0 ? '+' : ''}${pr.toFixed(2)}%</b>，大盤含息 <b class="${br >= 0 ? 'up' : 'down'}">${br >= 0 ? '+' : ''}${br.toFixed(2)}%</b>，差 ${(pr - br) >= 0 ? '+' : ''}${(pr - br).toFixed(2)}%（目標每年 +${state.params.alphaTarget}%，此期間約需 +${need.toFixed(2)}%）</p>` + navChart(nav, tri);
+    }
+    const bar = (label, v, target, cls) => `<div class="alloc"><span>${label}</span><div class="bar2"><i class="${cls}" style="width:${Math.min(100, Math.max(0, v)).toFixed(1)}%"></i>${target !== null ? `<em style="left:${target}%"></em>` : ''}</div><b>${v.toFixed(0)}%</b></div>`;
+    $('#dashboard').innerHTML = `
+      <div class="kpis">
+        <div class="kpi"><div class="k">總資產</div><div class="v">${C.fmtInt(ph.total)}</div><div class="sub">健康等級 <b class="grade g${ph.grade}">${ph.grade}</b></div></div>
+        <div class="kpi"><div class="k">持股市值</div><div class="v">${C.fmtInt(ph.mv)}</div><div class="sub">${hs.length} 筆</div></div>
+        <div class="kpi"><div class="k">現金</div><div class="v">${C.fmtInt(cash)}</div><div class="sub">${pf.cash !== null && pf.cash !== '' ? '手動輸入' : '資金池 − 持股成本'}</div></div>
+        <div class="kpi"><div class="k">自高點回檔</div><div class="v ${ph.dd < 0 ? 'down' : ''}">${ph.dd.toFixed(1)}%</div><div class="sub">風控第 ${ph.ddLevel} 級</div></div>
+        <div class="kpi"><div class="k">持股停損總風險</div><div class="v">${C.fmtInt(ph.riskSum)}</div><div class="sub">占總資產 ${ph.riskPct.toFixed(1)}%</div></div>
+      </div>
+      <div class="allocs">
+        ${bar('核心', ph.corePct, state.params.coreTarget, 'c1')}
+        ${bar('衛星', ph.satPct, 100 - state.params.coreTarget, 'c2')}
+        ${bar('現金', ph.cashPct, null, 'c3')}
+      </div>
+      <h4>健康快照</h4>
+      <ul class="checks">${ph.checks.map((c) => `<li class="${c.ok === true ? 'ok' : c.ok === false ? 'bad' : 'warn'}"><span>${c.ok === true ? '✓' : c.ok === false ? '✕' : '!'}</span>${esc(c.text)}</li>`).join('')}</ul>
+      <h4>績效 vs 大盤</h4>${perf}`;
+    renderPlan(ph);
+  }
+
+  function navChart(nav, tri) {
+    if (nav.length < 2) return '';
+    const W = 600, H = 120, pad = 4;
+    const t0 = (tri.find((x) => x.date >= nav[0].date) || tri[0]).close;
+    const bench = nav.map((n) => { const t = tri.filter((x) => x.date <= n.date).pop(); return t ? t.close / t0 * 100 : NaN; });
+    const a = nav.map((n) => n.nav / nav[0].nav * 100);
+    const vals = a.concat(bench.filter(isFinite));
+    const lo = Math.min(...vals), hi = Math.max(...vals), sp = hi - lo || 1;
+    const pts = (arr) => arr.map((v, i) => isFinite(v) ? `${(pad + i / (arr.length - 1) * (W - 2 * pad)).toFixed(1)},${(pad + (hi - v) / sp * (H - 2 * pad)).toFixed(1)}` : '').filter(Boolean).join(' ');
+    return `<svg viewBox="0 0 ${W} ${H}" class="navsvg" preserveAspectRatio="none" role="img" aria-label="組合淨值與大盤比較">
+      <polyline points="${pts(bench)}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <polyline points="${pts(a)}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>
+      <div class="small muted"><span style="color:var(--accent)">━ 我的組合</span>　┅ 大盤含息報酬指數</div>`;
+  }
+
+  // ---------- 分批建倉計畫 ----------
+  function renderPlan(ph) {
+    const pf = getPf();
+    const total = ph ? ph.total : currentAssets();
+    const etfTarget = total * 0.4, coreStock = total * (state.params.coreTarget / 100 - 0.4), sat = total * (1 - state.params.coreTarget / 100);
+    const start = pf.planStart || tpeNow().iso;
+    const mkt = state.market ? state.market.st : null;
+    const rows = [0, 1, 2, 3].map((k) => {
+      const d = new Date(Date.parse(start) + k * 7 * 86400000).toISOString().slice(0, 10);
+      const done = (pf.planDone || []).includes(k);
+      return `<tr class="${done ? 'done' : ''}"><td><label><input type="checkbox" data-k="${k}" ${done ? 'checked' : ''}> 第 ${k + 1} 批</label></td><td>${d} 那週</td><td class="num">${C.fmtInt(etfTarget / 4)}</td></tr>`;
+    }).join('');
+    $('#plan').innerHTML = `
+      <p class="small">依目前總資產 ${C.fmtInt(total)} 計算：ETF 底倉 ${C.fmtInt(etfTarget)}（40%）、核心個股 ${C.fmtInt(coreStock)}（${state.params.coreTarget - 40}%，每檔 ≤ 總資產 10%）、衛星波段 ${C.fmtInt(sat)}（${100 - state.params.coreTarget}%）。</p>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>ETF 底倉</th><th>預計時間</th><th class="num">金額</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <ul class="action-why">
+        <li>每週一批、4 週內完成${mkt ? `；大盤${mkt.close > mkt.m20 ? '已站上月線，可提前執行下一批' : '尚未站回月線，照時間表即可，不需等待'}` : ''}</li>
+        <li>核心個股：只在「年線布局」訊號出現時進場，每檔分 3 批</li>
+        <li>衛星波段：${mkt ? (mkt.filterPass ? '大盤濾網已通過，可依買點訊號進場' : '大盤濾網未通過（季線之下），暫不開新倉') : '等大盤資料載入'}</li>
+      </ul>
+      <div class="row-btns"><label class="chk">計畫開始日 <input type="date" id="plan-start" value="${start}"></label></div>`;
+    $('#plan').querySelectorAll('input[type=checkbox]').forEach((cb) => (cb.onchange = () => {
+      const v = getPf(); const k = Number(cb.dataset.k);
+      v.planDone = (v.planDone || []).filter((x) => x !== k); if (cb.checked) v.planDone.push(k);
+      setPf(v); renderPlan(ph);
+    }));
+    $('#plan-start').onchange = (e) => { const v = getPf(); v.planStart = e.target.value; setPf(v); renderPlan(ph); };
+  }
+
+  // ---------- 張數計算器 ----------
+  function initSizer() {
+    const f = $('#sizer');
+    const calc = () => {
+      const price = Number(f.price.value), stopIn = String(f.stop.value).trim();
+      let stop = Number(stopIn.replace('%', ''));
+      if (/%$/.test(stopIn) || (stop > 0 && stop < 50 && price > 100)) stop = price * (1 - stop / 100);
+      const r = TWStrategy.positionSize(currentAssets(), Number(f.risk.value) || state.params.riskPerTrade, price, stop);
+      $('#sizer-out').innerHTML = r ? `停損價 ${C.fmt(stop)}：最多 <b>${C.fmtInt(r.shares)} 股（${r.lots.toFixed(2)} 張）</b>，約 ${C.fmtInt(r.amount)} 元，占總資產 ${r.pctOfAssets.toFixed(1)}%；打到停損約虧 ${C.fmtInt(r.risk)} 元${r.pctOfAssets > 10 ? `<br><span style="color:var(--up)">超過總資產 10%，建議上限 ${C.fmtInt(Math.floor(currentAssets() * 0.1 / price))} 股</span>` : ''}` : '<span class="muted">輸入買價與停損（價格或 %）</span>';
+    };
+    f.oninput = calc; f.onsubmit = (e) => { e.preventDefault(); calc(); };
+    calc();
+  }
+
+  function initPortfolio() {
+    const pf = getPf();
+    const pool = $('#pf-pool'), cash = $('#pf-cash');
+    pool.value = pf.pool; cash.value = pf.cash === null ? '' : pf.cash;
+    pool.onchange = () => { const v = getPf(); v.pool = Number(pool.value) || 0; setPf(v); if (state.lastEvals) renderDashboard(state.lastEvals); };
+    cash.onchange = () => { const v = getPf(); v.cash = cash.value === '' ? null : Number(cash.value); setPf(v); if (state.lastEvals) renderDashboard(state.lastEvals); };
+    $('#pf-deposit').onclick = () => {
+      const amt = Number(prompt('這次入金多少元？（提款請輸入負數）', '10000'));
+      if (!amt) return;
+      const v = getPf(); v.pool += amt; if (v.cash !== null && v.cash !== '') v.cash = Number(v.cash) + amt;
+      v.flows = (v.flows || []).concat([{ date: tpeNow().iso, amount: amt }]);
+      setPf(v); pool.value = v.pool; cash.value = v.cash === null ? '' : v.cash;
+      if (state.lastEvals) renderDashboard(state.lastEvals);
+    };
+    $('#mk-refresh').onclick = () => loadMarket(true);
+    initSizer();
+    renderPlan(null);
   }
 
   // ---------- 自選 / 最近 ----------
@@ -1882,6 +2320,8 @@ tr.lv2 td{background:var(--bull-bg)}
     };
     renderLists();
     initHoldings();
+    initPortfolio();
+    loadMarket(false);
     const q = new URLSearchParams(location.search).get('s') || (location.hash || '').replace('#', '');
     if (q) { $('#code').value = q; query(q); }
   }
