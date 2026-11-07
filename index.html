@@ -123,6 +123,31 @@ details dt{font-weight:600;margin-top:8px}
 details dd{margin:2px 0 0;color:var(--muted)}
 .foot{font-size:12px;color:var(--muted);margin-top:16px;line-height:1.7}
 .foot button{font-size:12px;padding:3px 10px}
+.sig-now{padding:10px 12px;border-radius:10px;margin-bottom:10px;font-size:14px}
+.sig-now.buy{background:var(--bull-bg)} .sig-now.buy b{color:var(--up)}
+.sig-now.none{background:var(--neu-bg);color:var(--muted)}
+.sig-now small{color:var(--muted)}
+.row-btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.filebtn{font-size:15px;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--card);padding:8px 14px}
+.mini{padding:2px 8px;font-size:12px}
+.hold{border:1px solid var(--line);border-left:4px solid var(--down);border-radius:10px;padding:10px 12px;margin:10px 0}
+.hold.lv1{border-left-color:var(--ma1)} .hold.lv2{border-left-color:var(--up)}
+.hold-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hold-head .status{margin-left:auto;font-weight:700}
+.hold.lv2 .status{color:var(--up)} .hold.lv1 .status{color:var(--ma1)} .hold.lv0 .status{color:var(--down)}
+.pill2{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:0 8px;color:var(--muted)}
+.hold-meta{font-size:13px;margin:4px 0 6px;font-variant-numeric:tabular-nums}
+.hold-lines,.hold-notes{list-style:none;margin:0;padding:0;font-size:13px}
+.hold-lines li{display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)}
+.hold-lines li b{margin-left:auto;font-variant-numeric:tabular-nums}
+.hold-lines li small{width:52px;text-align:right;color:var(--muted)}
+.hold-lines li.hit{color:var(--up);font-weight:600}
+.hold-notes li{padding:3px 0;color:var(--muted)} .hold-notes li:first-child{color:var(--fg)}
+.hold-form{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:10px}
+.hold-form input,.hold-form select{font:inherit;font-size:16px;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0;width:100%}
+@media (max-width:760px){.hold-form{grid-template-columns:1fr 1fr}.hold-form button{grid-column:span 2}}
+tr.lv2 td{background:var(--bull-bg)}
+#my-holding h3{margin-bottom:4px}
 .empty{text-align:center;padding:40px 10px;color:var(--muted)}
 .empty b{color:var(--fg)}
 </style>
@@ -147,6 +172,7 @@ details dd{margin:2px 0 0;color:var(--muted)}
 
   <div id="result" hidden>
     <section class="card" id="summary"></section>
+    <section class="card" id="my-holding" hidden></section>
 
     <section class="card">
       <h3>K 線圖 <span class="muted">滑動或滑鼠移動看每日數值；滾輪縮放</span></h3>
@@ -178,6 +204,11 @@ details dd{margin:2px 0 0;color:var(--muted)}
     </section>
 
     <section class="card">
+      <h3>買賣點與回測 <span class="muted">規則式訊號，用過去資料檢驗勝率</span></h3>
+      <div id="strategy"></div>
+    </section>
+
+    <section class="card">
       <h3>籌碼面
         <span class="muted">近</span>
         <select id="chip-days" aria-label="籌碼天數"><option value="5">5 日</option><option value="10">10 日</option><option value="20">20 日</option></select>
@@ -185,6 +216,27 @@ details dd{margin:2px 0 0;color:var(--muted)}
       <div id="chips-body"></div>
     </section>
   </div>
+
+  <section class="card" id="holdings">
+    <h3>我的持股 <span class="muted">只存在這台裝置，不會上傳</span></h3>
+    <div id="holdings-list"></div>
+    <div class="row-btns">
+      <button id="hold-analyze" class="primary" type="button">分析全部持股</button>
+      <button id="hold-export" type="button">匯出 CSV</button>
+      <label class="filebtn">匯入 CSV<input id="hold-import" type="file" accept=".csv,text/csv,text/plain" hidden></label>
+      <label class="chk">波段停損 <select id="p-stop"><option>5</option><option>8</option><option>10</option><option>12</option><option>15</option></select> %</label>
+    </div>
+    <div id="holdings-cards"></div>
+    <form id="hold-form" class="hold-form" autocomplete="off">
+      <input name="code" type="text" placeholder="代號" aria-label="代號" inputmode="search">
+      <input name="date" type="date" aria-label="買進日">
+      <input name="cost" type="number" step="0.01" placeholder="成本價" aria-label="成本價" inputmode="decimal">
+      <input name="shares" type="number" step="0.001" placeholder="張數" aria-label="張數" inputmode="decimal">
+      <select name="kind" aria-label="類型"><option value="core">長線</option><option value="swing">波段</option></select>
+      <button type="submit">新增持股</button>
+    </form>
+    <p class="small muted">同一檔分批買進可以分開新增。零股用小數張數，例如 300 股 = 0.3 張。長線看年線與可承受虧損 15%；波段看固定停損、季線與移動停利。</p>
+  </section>
 
   <section class="card">
     <details>
@@ -207,7 +259,7 @@ details dd{margin:2px 0 0;color:var(--muted)}
   <div class="foot">
     資料來源：臺灣證券交易所公開資訊，每日收盤後更新（三大法人約 15:00 後、融資融券約 21:00 後）。股價為未還原權值價格，除權息後長天期均線會略有落差。<br>
     本工具以規則式統計整理技術面與籌碼面資訊，不構成投資建議，請自行判斷並承擔風險。<br>
-    <button id="clear-cache" type="button">清除快取資料</button> <span>版本 2026.11.07-1605</span>
+    <button id="clear-cache" type="button">清除快取資料</button> <span>版本 2026.11.07-2344</span>
   </div>
 </div>
 <script>/* ============================================================
@@ -692,6 +744,8 @@ details dd{margin:2px 0 0;color:var(--muted)}
       this.count = 120;
       this.end = 0; // 可視區最後一根 (exclusive)
       this.hover = -1;
+      this.markers = [];
+      this.costLines = [];
       this._bind();
       this._ro = new ResizeObserver(() => this.draw());
       this._ro.observe(canvas);
@@ -842,6 +896,29 @@ details dd{margin:2px 0 0;color:var(--muted)}
       // 均線
       this.maList.forEach(([p], k) => this._line(ctx, ind.ma[p], start, end, xOf, yMain, C.ma[k % 6], 1.4));
 
+      // 持股成本線
+      for (const cl of this.costLines || []) {
+        if (cl.price < lo || cl.price > hi) continue;
+        const y = Math.round(yMain(cl.price)) + 0.5;
+        ctx.strokeStyle = C.ma[0]; ctx.setLineDash([6, 4]); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + plotW, y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = C.ma[0]; ctx.textAlign = 'left'; ctx.fillText(cl.label, L + 4, y - 7);
+      }
+      // 買賣點標記
+      for (const m of this.markers || []) {
+        if (m.i === undefined || m.i < start || m.i >= end) continue;
+        const r = rows[m.i], x = xOf(m.i), s = Math.max(4, Math.min(7, bw * 0.45));
+        ctx.beginPath();
+        if (m.type === 'buy') {
+          const y = yMain(r.low) + 4;
+          ctx.fillStyle = C.up; ctx.moveTo(x, y); ctx.lineTo(x - s, y + s * 1.6); ctx.lineTo(x + s, y + s * 1.6);
+        } else {
+          const y = yMain(r.high) - 4;
+          ctx.fillStyle = C.down; ctx.moveTo(x, y); ctx.lineTo(x - s, y - s * 1.6); ctx.lineTo(x + s, y - s * 1.6);
+        }
+        ctx.closePath(); ctx.fill();
+      }
+
       // ---------- 成交量 ----------
       let vmax = 0;
       for (let i = start; i < end; i++) vmax = Math.max(vmax, rows[i].volume);
@@ -978,6 +1055,241 @@ details dd{margin:2px 0 0;color:var(--muted)}
 })(window);
 </script>
 <script>/* ============================================================
+ * 買賣點規則、回測、持股判斷（純函式，可在 Node 測試）
+ * 規則都是「收盤後判斷、隔日開盤執行」，避免偷看未來資料
+ * ============================================================ */
+(function (root) {
+  'use strict';
+
+  const DEFAULTS = {
+    swingStop: 8,      // 波段固定停損 %
+    coreRisk: 15,      // 長線可承受最大虧損 %
+    trailTrigger: 15,  // 獲利超過此 % 才啟動移動停利
+    trailDD: 10,       // 從最高收盤回落此 % 出場
+  };
+
+  const STRATS = {
+    B1: { name: '拉回買點', kind: 'swing', desc: '上升趨勢中（季線上揚、月線在季線上），股價拉回月線附近後收紅 K 站穩' },
+    B2: { name: '突破買點', kind: 'swing', desc: '收盤突破前 20 日最高價，且成交量大於 5 日均量 1.5 倍，股價在季線之上' },
+    B3: { name: '年線布局', kind: 'core', desc: '年線上揚，股價回到年線附近（-3%～+5%），出現 KD 低檔交叉或下影線止跌' },
+  };
+
+  const up = (a, i, lag) => isFinite(a[i]) && isFinite(a[i - lag]) && a[i] > a[i - lag];
+
+  // 逐日掃描買進訊號 → [{i, code:'B1'|'B2'|'B3', text}]
+  function findSignals(rows, ind) {
+    const out = [];
+    const ma20 = ind.ma[20], ma60 = ind.ma[60], ma240 = ind.ma[240];
+    const K = ind.kd.K, D = ind.kd.D;
+    const lastAt = {};
+    const push = (i, code, text) => {
+      if (lastAt[code] !== undefined && i - lastAt[code] < 5) return; // 同類訊號 5 日內不重複
+      lastAt[code] = i;
+      out.push({ i, date: rows[i].date, code, text });
+    };
+    for (let i = 21; i < rows.length; i++) {
+      const r = rows[i];
+      const c = r.close;
+      // B1 拉回買點
+      if (isFinite(ma60[i]) && c > ma60[i] && ma20[i] > ma60[i] && up(ma60, i, 10) &&
+          r.low <= ma20[i] * 1.015 && c >= ma20[i] && c > r.open) {
+        push(i, 'B1', `拉回月線 ${fmt(ma20[i])} 後收紅站穩`);
+      }
+      // B2 突破買點
+      let hh = -Infinity;
+      for (let j = i - 20; j < i; j++) hh = Math.max(hh, rows[j].high);
+      const vma = ind.volMA5[i - 1];
+      if (isFinite(ma60[i]) && c > hh && c > ma60[i] && isFinite(vma) && r.volume >= vma * 1.5) {
+        push(i, 'B2', `突破 20 日高點 ${fmt(hh)}，量 ${(r.volume / vma).toFixed(1)} 倍`);
+      }
+      // B3 年線布局
+      if (isFinite(ma240[i]) && up(ma240, i, 20) && c >= ma240[i] * 0.97 && c <= ma240[i] * 1.05) {
+        const kdCross = K[i - 1] <= D[i - 1] && K[i] > D[i] && K[i] < 40;
+        const body = Math.abs(c - r.open), shadow = Math.min(c, r.open) - r.low;
+        const hammer = shadow >= body && shadow >= c * 0.01 && c >= r.open;
+        if (kdCross || hammer) push(i, 'B3', `年線 ${fmt(ma240[i])} 附近${kdCross ? ' KD 低檔交叉' : '出現下影線止跌'}`);
+      }
+    }
+    return out;
+  }
+
+  // 由第 e 天(含)起持有，回傳出場 {exitIdx(執行日), reason} 或 null(未平倉)
+  // entryPrice 為成本；kind: swing/core
+  function findExit(rows, ind, startIdx, entryPrice, kind, p) {
+    const ma20 = ind.ma[20], ma60 = ind.ma[60], ma240 = ind.ma[240];
+    let maxClose = entryPrice;
+    for (let j = startIdx; j < rows.length; j++) {
+      const c = rows[j].close;
+      maxClose = Math.max(maxClose, c);
+      const ret = (c - entryPrice) / entryPrice * 100;
+      let reason = null;
+      if (kind === 'swing') {
+        if (ret <= -p.swingStop) reason = `固定停損（${ret.toFixed(1)}%）`;
+        else if (j > startIdx && c < ma60[j] && rows[j - 1].close < ma60[j - 1]) reason = '連 2 日收盤跌破季線';
+        else if ((maxClose - entryPrice) / entryPrice * 100 >= p.trailTrigger) {
+          if (c <= maxClose * (1 - p.trailDD / 100)) reason = `移動停利（自高點回落 ${p.trailDD}%）`;
+          else if (j > startIdx && c < ma20[j] && rows[j - 1].close < ma20[j - 1]) reason = '移動停利（獲利後連 2 日跌破月線）';
+        }
+      } else {
+        if (ret <= -p.coreRisk) reason = `超過可承受虧損（${ret.toFixed(1)}%）`;
+        else if (j >= startIdx + 2 && [0, 1, 2].every((k) => rows[j - k].close < ma240[j - k] * 0.97)) reason = '連 3 日收盤跌破年線 3% 以上';
+      }
+      if (reason) return { signalIdx: j, exitIdx: Math.min(j + 1, rows.length - 1), reason, executed: j + 1 < rows.length };
+    }
+    return null;
+  }
+
+  // 回測：訊號隔日開盤買進，出場訊號隔日開盤賣出；同一策略同時只持有一筆
+  function backtest(rows, ind, params) {
+    const p = Object.assign({}, DEFAULTS, params || {});
+    const sigs = findSignals(rows, ind);
+    const res = {};
+    for (const code of Object.keys(STRATS)) {
+      const kind = STRATS[code].kind;
+      const trades = [];
+      let busyUntil = -1;
+      for (const s of sigs.filter((x) => x.code === code)) {
+        if (s.i <= busyUntil || s.i + 1 >= rows.length) continue;
+        const ei = s.i + 1;
+        const entry = rows[ei].open;
+        const ex = findExit(rows, ind, ei, entry, kind, p);
+        if (ex && ex.executed) {
+          const exitP = rows[ex.exitIdx].open;
+          trades.push({ sig: s, entryDate: rows[ei].date, entry, exitDate: rows[ex.exitIdx].date, exit: exitP,
+            ret: (exitP - entry) / entry * 100, days: ex.exitIdx - ei, reason: ex.reason, open: false });
+          busyUntil = ex.exitIdx;
+        } else {
+          const last = rows[rows.length - 1];
+          trades.push({ sig: s, entryDate: rows[ei].date, entry, exitDate: null, exit: last.close,
+            ret: (last.close - entry) / entry * 100, days: rows.length - 1 - ei, reason: '持有中（未出場）', open: true });
+          busyUntil = rows.length;
+        }
+      }
+      const closed = trades.filter((t) => !t.open);
+      const wins = closed.filter((t) => t.ret > 0);
+      const compound = closed.reduce((acc, t) => acc * (1 + t.ret / 100), 1);
+      res[code] = {
+        trades,
+        n: closed.length,
+        winRate: closed.length ? wins.length / closed.length * 100 : NaN,
+        avg: closed.length ? closed.reduce((a, t) => a + t.ret, 0) / closed.length : NaN,
+        worst: closed.length ? Math.min(...closed.map((t) => t.ret)) : NaN,
+        best: closed.length ? Math.max(...closed.map((t) => t.ret)) : NaN,
+        avgDays: closed.length ? closed.reduce((a, t) => a + t.days, 0) / closed.length : NaN,
+        total: (compound - 1) * 100,
+      };
+    }
+    // 同期間買進持有（從年線可計算的第一天起，或從第 60 天起）
+    const start = Math.max(60, ind.ma[60].findIndex((v) => isFinite(v)));
+    const bh = rows.length > start ? (rows[rows.length - 1].close - rows[start].open) / rows[start].open * 100 : NaN;
+    return { strategies: res, signals: sigs, buyHold: bh, from: rows[start] ? rows[start].date : null, to: rows[rows.length - 1].date };
+  }
+
+  // 持股判斷：h = {code, date, cost, shares, kind}
+  function evaluateHolding(h, rows, ind, params) {
+    const p = Object.assign({}, DEFAULTS, params || {});
+    const n = rows.length, i = n - 1, r = rows[i], c = r.close;
+    const ma20 = ind.ma[20][i], ma60 = ind.ma[60][i], ma240 = ind.ma[240][i];
+    const ret = (c - h.cost) / h.cost * 100;
+    const since = rows.filter((x) => x.date >= h.date);
+    const maxClose = Math.max(h.cost, ...since.map((x) => x.close));
+    const maxRet = (maxClose - h.cost) / h.cost * 100;
+    const dd = (c - maxClose) / maxClose * 100;
+    const days = Math.round((Date.parse(r.date) - Date.parse(h.date)) / 86400000);
+    const notes = [];
+    const lines = []; // {name, price, hit}
+    let status = '續抱', level = 0; // 0 續抱 1 警戒 2 觸發
+
+    const below = (arr, k) => [...Array(k).keys()].every((d) => rows[i - d].close < arr[i - d]);
+
+    if (h.kind === 'swing') {
+      const fixed = h.cost * (1 - p.swingStop / 100);
+      lines.push({ name: `固定停損 -${p.swingStop}%`, price: fixed, hit: c <= fixed });
+      lines.push({ name: '技術停損：季線（連 2 日跌破）', price: ma60, hit: below(ind.ma[60], 2) });
+      if (maxRet >= p.trailTrigger) {
+        const trail = Math.max(ma20, maxClose * (1 - p.trailDD / 100));
+        lines.push({ name: `移動停利（最高 ${fmt(maxClose)} 回落 ${p.trailDD}% 或跌破月線）`, price: trail, hit: c <= maxClose * (1 - p.trailDD / 100) || below(ind.ma[20], 2) });
+      } else {
+        notes.push(`獲利達 +${p.trailTrigger}% 後啟動移動停利（目前最高 ${maxRet >= 0 ? '+' : ''}${maxRet.toFixed(1)}%）`);
+      }
+      if (lines.some((l) => l.hit)) {
+        const hit = lines.find((l) => l.hit);
+        status = hit.name.startsWith('移動') ? '觸發停利' : '觸發停損'; level = 2;
+        notes.unshift(`${hit.name} 已觸發，依規則應於下一交易日出場`);
+      } else {
+        const nearest = Math.max(...lines.map((l) => l.price).filter((v) => v < c));
+        if (c < ma20) { status = '警戒'; level = 1; notes.unshift('收盤在月線之下，短線轉弱'); }
+        if (isFinite(nearest) && (c - nearest) / c * 100 < 3) { status = '警戒'; level = 1; notes.unshift(`距最近出場線 ${fmt(nearest)} 不到 3%`); }
+      }
+    } else {
+      const risk = h.cost * (1 - p.coreRisk / 100);
+      lines.push({ name: `可承受虧損 -${p.coreRisk}%`, price: risk, hit: c <= risk });
+      lines.push({ name: '長線轉弱：年線 -3%（連 3 日）', price: ma240 * 0.97, hit: isFinite(ma240) && [0, 1, 2].every((d) => rows[i - d].close < ind.ma[240][i - d] * 0.97) });
+      if (lines.some((l) => l.hit)) {
+        status = '長線轉弱'; level = 2;
+        notes.unshift(`${lines.find((l) => l.hit).name} 已觸發，建議重新檢視這筆長線持股`);
+      } else if (c < ma60) {
+        status = '警戒'; level = 1; notes.unshift('跌破季線，中期轉弱；長線持股可觀察年線是否守住');
+      }
+      if (isFinite(ma240) && up(ind.ma[240], i, 20) && c >= ma240 * 0.97 && c <= ma240 * 1.05 && level < 2) {
+        notes.push('股價在上揚年線附近，屬長線分批布局區');
+      }
+    }
+    // 趨勢小結
+    const trend = c > ma20 && ma20 > ma60 ? '多頭' : c < ma20 && ma20 < ma60 ? '空頭' : '盤整';
+    return { code: h.code, close: c, date: r.date, ret, maxRet, dd, days, status, level, lines, notes, trend,
+      value: c * h.shares * 1000, costValue: h.cost * h.shares * 1000, pnl: (c - h.cost) * h.shares * 1000,
+      beforeData: h.date < rows[0].date };
+  }
+
+  function fmt(x) {
+    if (!isFinite(x)) return '—';
+    const d = Math.abs(x) >= 1000 ? 0 : Math.abs(x) >= 100 ? 1 : 2;
+    return x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+
+  // CSV 解析（代號,買進日,成本,張數,類型）
+  function parseHoldingsCSV(text) {
+    const lines = text.replace(/^﻿/, '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const out = [];
+    for (const line of lines) {
+      const cols = splitCSV(line);
+      const code = (cols[0] || '').toUpperCase();
+      if (!/^\d{4,6}[A-Z]?$/.test(code)) continue; // 跳過標題列
+      const date = normDate(cols[1]);
+      const cost = Number(String(cols[2]).replace(/,/g, ''));
+      const shares = Number(String(cols[3]).replace(/,/g, ''));
+      const kind = /波段|swing|短/.test(cols[4] || '') ? 'swing' : 'core';
+      if (date && cost > 0 && shares > 0) out.push({ code, date, cost, shares, kind });
+    }
+    return out;
+  }
+  function splitCSV(line) {
+    const out = []; let cur = '', q = false;
+    for (let k = 0; k < line.length; k++) {
+      const ch = line[k];
+      if (ch === '"') { if (q && line[k + 1] === '"') { cur += '"'; k++; } else q = !q; }
+      else if ((ch === ',' || ch === '\t') && !q) { out.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+  function normDate(s) {
+    if (!s) return null;
+    const m = String(s).match(/(\d{2,4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+    if (!m) return null;
+    let y = Number(m[1]);
+    if (y < 1911) y += 1911; // 民國年
+    return y + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+  }
+
+  const API = { DEFAULTS, STRATS, findSignals, findExit, backtest, evaluateHolding, parseHoldingsCSV, normDate };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  else root.TWStrategy = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>/* ============================================================
  * 台股技術分析 — 介面與資料抓取
  * ============================================================ */
 (function () {
@@ -1054,11 +1366,12 @@ details dd{margin:2px 0 0;color:var(--muted)}
   }
 
   // ---------- 價格資料 ----------
-  async function loadPrices(code, onProgress) {
+  async function loadPrices(code, onProgress, nMonths) {
+    nMonths = nMonths || PRICE_MONTHS;
     const now = tpeNow();
     const months = [];
     let y = now.y, m = now.m;
-    for (let i = 0; i < PRICE_MONTHS; i++) {
+    for (let i = 0; i < nMonths; i++) {
       months.push([y, m]);
       m--; if (m === 0) { m = 12; y--; }
     }
@@ -1153,6 +1466,8 @@ details dd{margin:2px 0 0;color:var(--muted)}
     code: null, name: '', rows: [], chips: null,
     period: 'D', range: (window.innerWidth || 1000) < 600 ? 60 : 120, sub: 'KD', bb: false,
     chipDays: Number(store.get('tw:pref:chipDays')) || 5,
+    months: PRICE_MONTHS,
+    params: Object.assign({}, TWStrategy.DEFAULTS, store.get('tw:pref:params') || {}),
     busy: false,
   };
   let chart;
@@ -1168,13 +1483,14 @@ details dd{margin:2px 0 0;color:var(--muted)}
     $('#result').hidden = false;
     $('#chips-body').innerHTML = '<p class="muted">等待股價下載完成…</p>';
     $('#signals').innerHTML = '';
+    if (state.code !== code) state.months = PRICE_MONTHS;
     state.code = code; state.chips = null;
     reqCount = 0;
     try {
       const { rows, name } = await loadPrices(code, (msg, p, partial, nm) => {
         if (msg) progress(msg, p);
         if (partial) { state.rows = partial; state.name = nm; renderAll(); }
-      });
+      }, state.months);
       state.rows = rows; state.name = name;
       addRecent(code, name);
       renderAll();
@@ -1208,6 +1524,8 @@ details dd{margin:2px 0 0;color:var(--muted)}
     const indD = C.computeIndicators(daily, 'D');
     const an = C.analyze(daily, indD, state.chips);
     renderSummary(daily, an);
+    renderStrategy(daily, indD);
+    renderMyHolding(daily, indD);
     renderChart();
     renderMA(daily, indD);
     renderSignals(an);
@@ -1244,6 +1562,8 @@ details dd{margin:2px 0 0;color:var(--muted)}
     const rangeBars = state.period === 'D' ? state.range : state.period === 'W' ? Math.round(state.range / 5) : Math.round(state.range / 20);
     chart.count = Math.max(20, Math.min(rangeBars, rows.length));
     chart.sub = state.sub; chart.showBB = state.bb;
+    chart.markers = state.period === 'D' ? state.markers || [] : [];
+    chart.costLines = state.period === 'D' || state.period === 'W' || state.period === 'M' ? state.costLines || [] : [];
     chart.setData(rows, ind, maList);
   }
 
@@ -1321,6 +1641,177 @@ details dd{margin:2px 0 0;color:var(--muted)}
       <div><h4 class="down">下方支撐</h4><ul>${an.support.map(li).join('') || '<li class="muted">無（創新低區）</li>'}</ul></div>`;
   }
 
+  // ---------- 買賣點 / 回測 ----------
+  function renderStrategy(rows, ind) {
+    const S = TWStrategy;
+    const bt = S.backtest(rows, ind, state.params);
+    const n = rows.length;
+    // 圖上標記（只標回測交易）
+    const idx = {}; rows.forEach((r, i) => (idx[r.date] = i));
+    const marks = [];
+    for (const [code, st] of Object.entries(bt.strategies)) {
+      for (const t of st.trades) {
+        marks.push({ i: idx[t.entryDate], type: 'buy', label: code });
+        if (t.exitDate) marks.push({ i: idx[t.exitDate], type: 'sell', label: code });
+      }
+    }
+    state.markers = marks;
+    // 最近訊號（近 3 個交易日）
+    const recent = bt.signals.filter((s) => s.i >= n - 3);
+    const head = recent.length
+      ? recent.map((s) => `<div class="sig-now buy"><b>${S.STRATS[s.code].name}</b> ${s.date.slice(5).replace('-', '/')}：${esc(s.text)}<br><small>依規則：下一交易日開盤進場；${S.STRATS[s.code].kind === 'swing' ? `停損 -${state.params.swingStop}% 或連 2 日跌破季線` : `長線部位，可承受 -${state.params.coreRisk}%`}</small></div>`).join('')
+      : '<div class="sig-now none">近 3 個交易日沒有出現買進訊號</div>';
+    const pct = (v) => (isFinite(v) ? `<span class="${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${v > 0 ? '+' : ''}${v.toFixed(1)}%</span>` : '—');
+    const rowsHtml = Object.entries(bt.strategies).map(([code, st]) => {
+      const openT = st.trades.find((t) => t.open);
+      return `<tr><td><b>${S.STRATS[code].name}</b><br><small class="muted">${S.STRATS[code].kind === 'swing' ? '波段' : '長線'}</small></td>
+        <td class="num">${st.n}${openT ? ' <small class="muted">+1 持有中</small>' : ''}</td>
+        <td class="num">${isFinite(st.winRate) ? st.winRate.toFixed(0) + '%' : '—'}</td>
+        <td class="num">${pct(st.avg)}</td><td class="num">${pct(st.worst)}</td><td class="num">${pct(st.total)}</td>
+        <td class="num">${isFinite(st.avgDays) ? Math.round(st.avgDays) + ' 天' : '—'}</td></tr>`;
+    }).join('');
+    const trades = Object.entries(bt.strategies).flatMap(([code, st]) => st.trades.map((t) => ({ code, ...t })))
+      .sort((a, b) => b.entryDate.localeCompare(a.entryDate));
+    const tradeHtml = trades.map((t) => `<tr><td>${TWStrategy.STRATS[t.code].name}</td><td>${t.entryDate.slice(2)}</td><td class="num">${C.fmt(t.entry)}</td>
+      <td>${t.exitDate ? t.exitDate.slice(2) : '<span class="muted">持有中</span>'}</td><td class="num">${C.fmt(t.exit)}</td><td class="num">${pct(t.ret)}</td><td class="small">${esc(t.reason)}</td></tr>`).join('');
+    const years = (Date.parse(bt.to) - Date.parse(bt.from)) / (365.25 * 86400000);
+    $('#strategy').innerHTML = `
+      ${head}
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>策略</th><th class="num">交易次數</th><th class="num">勝率</th><th class="num">平均報酬</th><th class="num">最大單筆虧損</th><th class="num">累積報酬</th><th class="num">平均持有</th></tr></thead>
+        <tbody>${rowsHtml}</tbody></table></div>
+      <p class="small muted">回測區間 ${bt.from || '—'} ～ ${bt.to}（約 ${years.toFixed(1)} 年），同期買進持有 ${pct(bt.buyHold)}。訊號以收盤判斷、隔日開盤成交，未計手續費與交易稅（來回約 0.6%）。
+      ${state.months < 37 ? '<br>資料只有約 1 年，樣本太少、年線策略也還算不出來，建議延伸到 3 年再看結果。' : ''}</p>
+      <div class="row-btns">${state.months < 37 ? '<button id="bt-extend" type="button">延伸到 3 年資料回測（首次約 1 分鐘）</button>' : ''}</div>
+      ${trades.length ? `<details><summary>逐筆交易明細（${trades.length} 筆，圖上 ▲ 買進 ▼ 賣出）</summary><div class="tbl-wrap"><table class="tbl"><thead><tr><th>策略</th><th>買進日</th><th class="num">買價</th><th>賣出日</th><th class="num">賣價</th><th class="num">報酬</th><th>出場原因</th></tr></thead><tbody>${tradeHtml}</tbody></table></div></details>` : ''}
+      <details><summary>規則說明</summary><dl>
+        ${Object.entries(S.STRATS).map(([k, v]) => `<dt>${v.name}（${v.kind === 'swing' ? '波段' : '長線'}）</dt><dd>${v.desc}</dd>`).join('')}
+        <dt>波段出場</dt><dd>任一條件成立即出場：① 虧損達 ${state.params.swingStop}%　② 連 2 日收盤跌破季線　③ 獲利曾達 +${state.params.trailTrigger}% 後，自最高收盤回落 ${state.params.trailDD}% 或連 2 日跌破月線</dd>
+        <dt>長線出場</dt><dd>① 虧損達 ${state.params.coreRisk}%　② 連 3 日收盤低於年線 3% 以上</dd>
+      </dl></details>`;
+    const ext = $('#bt-extend');
+    if (ext) ext.onclick = () => { state.months = 37; query(state.code); };
+  }
+
+  // ---------- 我的持股 ----------
+  const getHoldings = () => store.get('tw:holdings') || [];
+  const setHoldings = (h) => store.set('tw:holdings', h);
+  const kindName = (k) => (k === 'swing' ? '波段' : '長線');
+
+  function renderMyHolding(rows, ind) {
+    const mine = getHoldings().filter((h) => h.code === state.code);
+    state.costLines = mine.map((h) => ({ price: h.cost, label: '成本 ' + C.fmt(h.cost) }));
+    const box = $('#my-holding');
+    if (!mine.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<h3>我的持股判斷</h3>' + mine.map((h) => holdingCard(h, TWStrategy.evaluateHolding(h, rows, ind, state.params))).join('');
+  }
+
+  function holdingCard(h, e) {
+    const cls = e.level === 2 ? 'lv2' : e.level === 1 ? 'lv1' : 'lv0';
+    return `<div class="hold ${cls}">
+      <div class="hold-head"><b>${esc(h.name || '')} ${esc(h.code)}</b><span class="pill2">${kindName(h.kind)}</span><span class="status">${e.status}</span></div>
+      <div class="hold-meta">買進 ${h.date}（${e.days} 天）成本 ${C.fmt(h.cost)} × ${h.shares} 張 → 現價 ${C.fmt(e.close)}，
+        <span class="${e.ret >= 0 ? 'up' : 'down'}">${e.ret >= 0 ? '+' : ''}${e.ret.toFixed(1)}%（${e.pnl >= 0 ? '+' : ''}${C.fmtInt(e.pnl)} 元）</span>，持有期最高 ${e.maxRet >= 0 ? '+' : ''}${e.maxRet.toFixed(1)}%</div>
+      <ul class="hold-lines">${e.lines.map((l) => `<li class="${l.hit ? 'hit' : ''}"><span>${esc(l.name)}</span><b>${C.fmt(l.price)}</b><small>${isFinite(l.price) ? ((l.price - e.close) / e.close * 100).toFixed(1) + '%' : ''}</small></li>`).join('')}</ul>
+      ${e.notes.length ? `<ul class="hold-notes">${e.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+      ${e.beforeData ? '<p class="small muted">買進日早於已下載資料，持有期最高價只從資料起點算起。</p>' : ''}
+    </div>`;
+  }
+
+  function renderHoldingsTable(evals) {
+    const hs = getHoldings();
+    const box = $('#holdings-list');
+    if (!hs.length) { box.innerHTML = '<p class="muted">還沒有持股。用下方表單新增，或匯入 CSV。</p>'; return; }
+    let totCost = 0, totVal = 0;
+    const tr = hs.map((h, k) => {
+      const e = evals && evals[k];
+      if (e) { totCost += e.costValue; totVal += e.value; }
+      return `<tr class="${e ? 'lv' + e.level : ''}"><td><a href="#" data-code="${esc(h.code)}" class="goto">${esc(h.name || '')} ${esc(h.code)}</a></td><td>${kindName(h.kind)}</td><td>${h.date}</td>
+        <td class="num">${C.fmt(h.cost)}</td><td class="num">${h.shares}</td>
+        <td class="num">${e ? C.fmt(e.close) : '—'}</td>
+        <td class="num">${e ? `<span class="${e.ret >= 0 ? 'up' : 'down'}">${e.ret >= 0 ? '+' : ''}${e.ret.toFixed(1)}%</span>` : '—'}</td>
+        <td>${e ? `<b>${e.status}</b>` : ''}</td>
+        <td><button class="mini del" data-k="${k}" type="button" aria-label="刪除">✕</button></td></tr>`;
+    }).join('');
+    const sum = evals ? (() => {
+      const coreV = hs.reduce((a, h, k) => a + (h.kind === 'core' && evals[k] ? evals[k].value : 0), 0);
+      return `<p class="small">總成本 ${C.fmtInt(totCost)}　市值 ${C.fmtInt(totVal)}　損益 <span class="${totVal >= totCost ? 'up' : 'down'}">${totVal >= totCost ? '+' : ''}${C.fmtInt(totVal - totCost)}（${((totVal - totCost) / totCost * 100).toFixed(1)}%）</span>　長線 / 波段 = ${(coreV / totVal * 100).toFixed(0)}% / ${(100 - coreV / totVal * 100).toFixed(0)}%</p>`;
+    })() : '<p class="small muted">按「分析全部持股」下載最新股價並判斷。</p>';
+    box.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>股票</th><th>類型</th><th>買進日</th><th class="num">成本</th><th class="num">張數</th><th class="num">現價</th><th class="num">損益</th><th>狀態</th><th></th></tr></thead><tbody>${tr}</tbody></table></div>${sum}`;
+    box.querySelectorAll('.del').forEach((b) => (b.onclick = () => {
+      const h = getHoldings(); const x = h[Number(b.dataset.k)];
+      if (!confirm(`刪除 ${x.code} ${x.date} 這筆持股？`)) return;
+      h.splice(Number(b.dataset.k), 1); setHoldings(h); renderHoldingsTable(); if (state.rows.length) renderAll();
+    }));
+    box.querySelectorAll('.goto').forEach((a) => (a.onclick = (ev) => { ev.preventDefault(); $('#intro').hidden = true; $('#code').value = a.dataset.code; query(a.dataset.code); window.scrollTo(0, 0); }));
+  }
+
+  async function analyzeAll() {
+    if (state.busy) return;
+    const hs = getHoldings();
+    if (!hs.length) return;
+    state.busy = true; $('#hold-analyze').disabled = true; showError('');
+    const evals = [];
+    try {
+      const cache = {};
+      for (let k = 0; k < hs.length; k++) {
+        const h = hs[k];
+        if (!cache[h.code]) {
+          progress(`持股 ${k + 1}/${hs.length}：${h.code} 下載股價…`, k / hs.length);
+          const { rows, name } = await loadPrices(h.code, (msg) => msg && progress(`持股 ${k + 1}/${hs.length}：${msg}`, k / hs.length));
+          cache[h.code] = { rows, name, ind: C.computeIndicators(rows, 'D') };
+        }
+        const d = cache[h.code];
+        if (!h.name && d.name) h.name = d.name;
+        evals[k] = TWStrategy.evaluateHolding(h, d.rows, d.ind, state.params);
+      }
+      setHoldings(hs);
+      renderHoldingsTable(evals);
+      $('#holdings-cards').innerHTML = hs.map((h, k) => holdingCard(h, evals[k])).join('');
+    } catch (e) { showError(e.message || String(e)); }
+    finally { progress('', 1); state.busy = false; $('#hold-analyze').disabled = false; }
+  }
+
+  function initHoldings() {
+    const f = $('#hold-form');
+    f.querySelector('[name=date]').value = tpeNow().iso;
+    f.onsubmit = (ev) => {
+      ev.preventDefault();
+      const code = resolveCode(f.code.value);
+      const cost = Number(f.cost.value), shares = Number(f.shares.value);
+      if (!code || !(cost > 0) || !(shares > 0) || !f.date.value) { showError('持股資料不完整：請填代號、買進日、成本與張數'); return; }
+      const names = store.get('tw:names') || {};
+      const h = getHoldings();
+      h.push({ code, name: names[code] || '', date: f.date.value, cost, shares, kind: f.kind.value });
+      setHoldings(h); showError('');
+      f.code.value = ''; f.cost.value = ''; f.shares.value = '';
+      renderHoldingsTable(); if (state.rows.length) renderAll();
+    };
+    $('#hold-analyze').onclick = analyzeAll;
+    $('#hold-export').onclick = () => {
+      const rows = ['代號,名稱,買進日,成本,張數,類型'].concat(getHoldings().map((h) => [h.code, h.name || '', h.date, h.cost, h.shares, kindName(h.kind)].join(',')));
+      const blob = new Blob(['﻿' + rows.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '我的持股.csv'; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    };
+    $('#hold-import').onchange = async (ev) => {
+      const file = ev.target.files[0]; if (!file) return;
+      const list = TWStrategy.parseHoldingsCSV(await file.text());
+      if (!list.length) { showError('CSV 裡沒有可辨識的持股。格式：代號,買進日,成本,張數,類型(長線/波段)'); return; }
+      if (!confirm(`匯入 ${list.length} 筆持股？（會加在現有持股後面）`)) return;
+      setHoldings(getHoldings().concat(list)); renderHoldingsTable(); ev.target.value = '';
+    };
+    const sp = $('#p-stop');
+    sp.value = String(state.params.swingStop);
+    sp.onchange = () => {
+      state.params.swingStop = Math.min(15, Math.max(3, Number(sp.value) || 8));
+      store.set('tw:pref:params', { swingStop: state.params.swingStop });
+      if (state.rows.length) renderAll();
+    };
+    renderHoldingsTable();
+  }
+
   // ---------- 自選 / 最近 ----------
   const getWatch = () => store.get('tw:watch') || [];
   function toggleWatch(code, name) {
@@ -1390,6 +1881,7 @@ details dd{margin:2px 0 0;color:var(--muted)}
       alert('已清除 ' + ks.length + ' 筆快取資料（自選清單保留）');
     };
     renderLists();
+    initHoldings();
     const q = new URLSearchParams(location.search).get('s') || (location.hash || '').replace('#', '');
     if (q) { $('#code').value = q; query(q); }
   }
